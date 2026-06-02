@@ -27,9 +27,18 @@ const MENU_SECTIONS = [
     ],
   },
   {
+    title: 'Wedding Tools',
+    items: [
+      { id: 'budget', label: 'Budget Planner', icon: 'creditcard.fill', route: '/budget' as string | null },
+      { id: 'plan', label: 'Wedding Checklist', icon: 'checklist', route: '/plan' as string | null },
+      { id: 'available', label: 'Available Today', icon: 'clock.fill', route: '/available-today' as string | null },
+      { id: 'blog', label: 'Wedding Blog', icon: 'book.fill', route: '/blog' as string | null },
+    ],
+  },
+  {
     title: 'Support',
     items: [
-      { id: 'help', label: 'Help & Support', icon: 'questionmark.circle.fill', route: '/help' as string | null },
+      { id: 'help', label: 'Help & FAQ', icon: 'questionmark.circle.fill', route: '/help' as string | null },
       { id: 'terms', label: 'Terms & Conditions', icon: 'doc.fill', route: '/terms' as string | null },
       { id: 'privacy', label: 'Privacy Policy', icon: 'lock.fill', route: '/privacy' as string | null },
       { id: 'about', label: 'About', icon: 'info.circle.fill', route: '/about' as string | null },

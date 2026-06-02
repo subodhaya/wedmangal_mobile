@@ -399,6 +399,16 @@ class APIClient {
   async unblockCalendarDate(pk: number) {
     return this.client.delete(`/orders/calendar/block/${pk}/`);
   }
+
+  // ============ BLOG ============
+
+  async getBlogPosts(params?: { category?: string }) {
+    return this.client.get("/blog/", { params });
+  }
+
+  async getBlogPost(slug: string) {
+    return this.client.get(`/blog/${slug}/`);
+  }
 }
 
 export const apiClient = new APIClient();
