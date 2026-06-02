@@ -21,7 +21,7 @@ const MENU_SECTIONS = [
   {
     title: 'Account',
     items: [
-      { id: 'edit', label: 'Edit Profile', icon: 'pencil', route: null as string | null },
+      { id: 'edit', label: 'Edit Profile', icon: 'pencil', route: '/edit-profile' as string | null },
       { id: 'bookings', label: 'My Bookings', icon: 'calendar', route: '/(tabs)/bookings' as string | null },
       { id: 'wishlist', label: 'Wishlist', icon: 'heart.fill', route: '/(tabs)/wishlist' as string | null },
     ],
@@ -143,13 +143,14 @@ export default function ProfileScreen() {
               {[
                 { id: 'add', label: 'Register My Business', icon: 'plus', route: '/add-product' },
                 { id: 'manage', label: 'Manage My Page', icon: 'pencil', route: '/manage-page' },
-              ].map((item, idx) => (
+                { id: 'calendar', label: 'Availability Calendar', icon: 'calendar', route: '/vendor-calendar' },
+              ].map((item, idx, arr) => (
                 <TouchableOpacity
                   key={item.id}
                   onPress={() => router.push(item.route as any)}
                   style={{
                     flexDirection: 'row', alignItems: 'center', padding: 14,
-                    borderBottomWidth: idx === 0 ? 1 : 0, borderBottomColor: '#e8d5de',
+                    borderBottomWidth: idx < arr.length - 1 ? 1 : 0, borderBottomColor: '#e8d5de',
                   }}
                 >
                   <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: '#f5e4ec', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
