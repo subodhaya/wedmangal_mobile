@@ -641,8 +641,38 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* ── Invitation CTA ── */}
+        <TouchableOpacity
+          onPress={() => router.push('/plan' as any)}
+          activeOpacity={0.9}
+          style={{
+            marginHorizontal: 16, marginVertical: 16,
+            backgroundColor: '#3d0d28', borderRadius: 16, overflow: 'hidden',
+          }}
+        >
+          <View style={{ padding: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={{ fontSize: 10, fontWeight: '800', color: '#f5d0e0', textTransform: 'uppercase', letterSpacing: 1 }}>
+                FREE TOOL
+              </Text>
+              <Text style={{ fontSize: 16, fontWeight: '900', color: '#f9e79f' }}>
+                Creating your wedding plan is simple 💍
+              </Text>
+              <Text style={{ fontSize: 12, color: '#f5d0e0' }}>
+                Step-by-step checklist for your big day
+              </Text>
+            </View>
+            <View style={{
+              backgroundColor: '#c9973a', borderRadius: 30,
+              paddingHorizontal: 14, paddingVertical: 8, marginLeft: 12,
+            }}>
+              <Text style={{ color: '#1a0a12', fontWeight: '800', fontSize: 12 }}>Start →</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+
         {/* ── Featured Vendors ── */}
-        <View style={{ paddingHorizontal: 16, paddingTop: 24, paddingBottom: 16 }}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 16 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <Text style={{ fontSize: 20, fontWeight: '800', color: BRAND }}>Featured Vendors</Text>
             <TouchableOpacity onPress={() => router.push('/(tabs)/search')}>

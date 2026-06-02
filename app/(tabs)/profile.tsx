@@ -6,6 +6,12 @@ import { useState, useCallback } from "react";
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 
+interface OrderStats {
+  total: number;
+  paid: number;
+  spent: number;
+}
+
 const BRAND = '#5e143f';
 const GOLD = '#f9e79f';
 
@@ -38,10 +44,11 @@ const MENU_SECTIONS = [
   {
     title: 'Support',
     items: [
-      { id: 'help', label: 'Help & FAQ', icon: 'questionmark.circle.fill', route: '/help' as string | null },
-      { id: 'terms', label: 'Terms & Conditions', icon: 'doc.fill', route: '/terms' as string | null },
-      { id: 'privacy', label: 'Privacy Policy', icon: 'lock.fill', route: '/privacy' as string | null },
-      { id: 'about', label: 'About', icon: 'info.circle.fill', route: '/about' as string | null },
+      { id: 'faq',     label: 'FAQ',                icon: 'questionmark.circle.fill', route: '/faq' as string | null },
+      { id: 'contact', label: 'Contact Us',          icon: 'envelope.fill',            route: '/contact' as string | null },
+      { id: 'terms',   label: 'Terms & Conditions',  icon: 'doc.fill',                 route: '/terms' as string | null },
+      { id: 'privacy', label: 'Privacy Policy',      icon: 'lock.fill',                route: '/privacy' as string | null },
+      { id: 'about',   label: 'About',               icon: 'info.circle.fill',         route: '/about' as string | null },
     ],
   },
 ];
@@ -50,15 +57,25 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { logout } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [stats, setStats] = useState<OrderStats>({ total: 0, paid: 0, spent: 0 });
   const [loading, setLoading] = useState(true);
   const [confirmLogout, setConfirmLogout] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
-      apiClient.getUserProfile()
-        .then(r => setProfile(r.data))
-        .catch(e => console.error(e))
+      Promise.all([
+        apiClient.getUserProfile(),
+        apiClient.getMyOrders().catch(() => ({ data: [] })),
+      ]).then(([profileRes, ordersRes]) => {
+        setProfile(profileRes.data);
+        const orders: any[] = Array.isArray(ordersRes.data) ? ordersRes.data : ordersRes.data?.results ?? [];
+        setStats({
+          total: orders.length,
+          paid: orders.filter((o: any) => o.isPaid).length,
+          spent: orders.reduce((s: number, o: any) => s + (parseFloat(o.totalPrice ?? '0') || 0), 0),
+        });
+      }).catch(e => console.error(e))
         .finally(() => setLoading(false));
     }, [])
   );
@@ -106,6 +123,27 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 20 }}>
+
+        {/* Stats row */}
+        {!loading && stats.total > 0 && (
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            {[
+              { num: stats.total, label: 'Bookings', icon: '📦' },
+              { num: stats.paid,  label: 'Paid',     icon: '💰' },
+              { num: `₹${stats.spent.toLocaleString('en-IN')}`, label: 'Total Spent', icon: '💸' },
+            ].map(s => (
+              <View key={s.label} style={{
+                flex: 1, backgroundColor: '#fdf8f0', borderRadius: 12, padding: 12,
+                alignItems: 'center', borderWidth: 1, borderColor: '#e8d5de', gap: 3,
+              }}>
+                <Text style={{ fontSize: 16 }}>{s.icon}</Text>
+                <Text style={{ fontSize: 15, fontWeight: '900', color: BRAND }}>{s.num}</Text>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: '#9a7a85', textTransform: 'uppercase', letterSpacing: 0.4 }}>{s.label}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         {MENU_SECTIONS.map(section => (
           <View key={section.title} style={{ gap: 8 }}>
             <Text style={{ fontSize: 12, fontWeight: '700', color: '#7a5a6a', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>
