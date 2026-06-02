@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(read icon *)"
+    ],
+    "additionalDirectories": [
+      "/home/subo/Desktop/cs50/cs50/lecturetry/Ecart/bestdayevents/frontend/src/components",
+      "/home/subo/Desktop/cs50/cs50/lecturetry/Ecart/bestdayevents/backend/base/urls"
+    ]
+  }
+}
