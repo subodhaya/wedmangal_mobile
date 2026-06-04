@@ -74,6 +74,7 @@ const SLIDES = [
 const getImageUrl = (img: string | null) => {
   if (!img) return null;
   if (img.startsWith('http')) return img;
+  if (img.startsWith('/')) return `https://wedmangal.com${img}`;
   return `https://wedmangal.com/static/images/${img}`;
 };
 

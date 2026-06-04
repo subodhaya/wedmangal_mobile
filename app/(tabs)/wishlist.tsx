@@ -21,6 +21,7 @@ interface WishlistItem {
 const getImageUrl = (img: string | null | undefined) => {
   if (!img) return null;
   if (img.startsWith('http')) return img;
+  if (img.startsWith('/')) return `https://wedmangal.com${img}`;
   return `https://wedmangal.com/static/images/${img}`;
 };
 
@@ -42,7 +43,12 @@ export default function WishlistScreen() {
     useCallback(() => {
       setLoading(true);
       apiClient.getWishlist()
-        .then(r => setWishlist(r.data.products ?? r.data ?? []))
+        .then(r => {
+          const raw: any[] = r.data.products ?? r.data ?? [];
+          // Wishlist items may be wrapped: { product: {...} } or flat
+          const items = raw.map((i: any) => i.product ?? i);
+          setWishlist(items);
+        })
         .catch(e => console.error(e))
         .finally(() => setLoading(false));
     }, [])

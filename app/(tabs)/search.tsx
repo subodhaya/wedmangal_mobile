@@ -90,6 +90,7 @@ const CATEGORY_FILTERS: Record<string, { key: string; label: string; type: 'sele
 const getImageUrl = (img: string | null) => {
   if (!img) return null;
   if (img.startsWith('http')) return img;
+  if (img.startsWith('/')) return `https://wedmangal.com${img}`;
   return `https://wedmangal.com/static/images/${img}`;
 };
 
