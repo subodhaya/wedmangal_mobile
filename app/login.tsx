@@ -55,9 +55,16 @@ export default function LoginScreen() {
     setError('');
     try {
       const res = await apiClient.googleLogin(idToken);
-      const { access, refresh, user } = res.data;
-      await setAuthData({ access, refresh, user });
-      await routeAfterLogin(user);
+      const data = res.data;
+      const userData = data.user ?? {
+        id: data.id ?? data._id,
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        phone: data.phone,
+      };
+      await setAuthData({ access: data.access, refresh: data.refresh, user: userData });
+      routeAfterLogin(userData);
     } catch {
       setError('Google sign-in failed. Please try again.');
     } finally {
@@ -74,9 +81,17 @@ export default function LoginScreen() {
     setSubmitting(true);
     try {
       const res = await apiClient.loginWithJWT(email.trim(), password);
-      const { access, refresh, user } = res.data;
-      await setAuthData({ access, refresh, user });
-      await routeAfterLogin(user);
+      const data = res.data;
+      // Backend may return user nested or flat at top level
+      const userData = data.user ?? {
+        id: data.id ?? data._id,
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        phone: data.phone,
+      };
+      await setAuthData({ access: data.access, refresh: data.refresh, user: userData });
+      routeAfterLogin(userData);
     } catch {
       setError('Invalid email or password. Please try again.');
     } finally {
