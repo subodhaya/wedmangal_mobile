@@ -79,7 +79,8 @@ export default function BookingsScreen() {
   const [togglingPaid, setTogglingPaid] = useState<number | null>(null);
   const [togglingDone, setTogglingDone] = useState<number | null>(null);
 
-  const isVendor = (user as any)?.role === 'service-owner';
+  const userRole = (user as any)?.role ?? '';
+  const isVendor = userRole === 'service-owner';
 
   const loadOrders = useCallback(() => {
     setLoading(true);
