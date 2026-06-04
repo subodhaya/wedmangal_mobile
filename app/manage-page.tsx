@@ -29,12 +29,17 @@ const CATEGORIES = [
   { label: 'Pandit', value: 'Pandit' },
 ];
 
+type ServiceImage = {
+  _id: string;
+  image: string;
+};
+
 type Service = {
   _id: string;
   name: string;
   description: string;
   price: string | number;
-  images?: { image: string }[];
+  images?: ServiceImage[];
 };
 
 type AddServiceForm = {
@@ -42,6 +47,12 @@ type AddServiceForm = {
   description: string;
   price: string;
   imageUri: string | null;
+};
+
+type EditServiceForm = {
+  name: string;
+  description: string;
+  price: string;
 };
 
 export default function ManagePage() {
@@ -83,6 +94,12 @@ export default function ManagePage() {
   const [showAddService, setShowAddService] = useState(false);
   const [addSvc, setAddSvc] = useState<AddServiceForm>({ name: '', description: '', price: '', imageUri: null });
   const [addingService, setAddingService] = useState(false);
+  // Inline service editing
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<EditServiceForm>({ name: '', description: '', price: '' });
+  const [savingService, setSavingService] = useState(false);
+  // Per-service image upload tracking
+  const [addingImageToId, setAddingImageToId] = useState<string | null>(null);
 
   const fetchedRef = useRef(false);
 
@@ -230,6 +247,100 @@ export default function ManagePage() {
     }
   };
 
+  // ── Remove the business main image ───────────────────────────────────────────
+  const handleRemoveBusinessImage = () => {
+    Alert.alert('Remove Image', 'Remove the main business photo?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove', style: 'destructive',
+        onPress: async () => {
+          try {
+            if (productId) await apiClient.removeBusinessImage(productId);
+            setExistingImage(null);
+            setImageUri(null);
+          } catch {
+            Alert.alert('Error', 'Could not remove image.');
+          }
+        },
+      },
+    ]);
+  };
+
+  // ── Delete one image from a service ──────────────────────────────────────────
+  const handleDeleteServiceImage = (svcId: string, imgId: string) => {
+    Alert.alert('Remove Image', 'Delete this service image?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive',
+        onPress: async () => {
+          try {
+            await apiClient.removeServiceImage(imgId);
+            setServices(prev => prev.map(s =>
+              s._id === svcId
+                ? { ...s, images: s.images?.filter(i => i._id !== imgId) }
+                : s
+            ));
+          } catch {
+            Alert.alert('Error', 'Could not delete image.');
+          }
+        },
+      },
+    ]);
+  };
+
+  // ── Add image to an existing service ─────────────────────────────────────────
+  const handleAddServiceImage = async (svcId: string) => {
+    const uri = await new Promise<string | null>(resolve => {
+      pickImage(u => resolve(u));
+      // pickImage doesn't call resolve if user cancels; handle via timeout fallback
+      setTimeout(() => resolve(null), 60000);
+    });
+    if (!uri) return;
+    setAddingImageToId(svcId);
+    try {
+      const fn = uri.split('/').pop() ?? 'img.jpg';
+      const ext = fn.split('.').pop()?.toLowerCase() ?? 'jpg';
+      const formData = new FormData();
+      formData.append('images', { uri, type: `image/${ext}`, name: fn } as any);
+      const { data } = await apiClient.addServiceImages(svcId, formData);
+      const newImg: ServiceImage = data.image ?? data;
+      setServices(prev => prev.map(s =>
+        s._id === svcId
+          ? { ...s, images: [...(s.images ?? []), newImg] }
+          : s
+      ));
+    } catch {
+      Alert.alert('Error', 'Could not upload image.');
+    } finally {
+      setAddingImageToId(null);
+    }
+  };
+
+  // ── Save inline service edits ─────────────────────────────────────────────────
+  const handleUpdateService = async () => {
+    if (!editingServiceId) return;
+    if (!editForm.name.trim() || !editForm.price) {
+      Alert.alert('Required', 'Name and price are required.');
+      return;
+    }
+    setSavingService(true);
+    try {
+      const { data } = await apiClient.updateService(editingServiceId, {
+        name: editForm.name.trim(),
+        description: editForm.description,
+        price: editForm.price,
+      });
+      setServices(prev => prev.map(s =>
+        s._id === editingServiceId ? { ...s, ...data, images: s.images } : s
+      ));
+      setEditingServiceId(null);
+    } catch {
+      Alert.alert('Error', 'Could not update service.');
+    } finally {
+      setSavingService(false);
+    }
+  };
+
   const inputStyle = {
     backgroundColor: '#fdf8f0', borderWidth: 1, borderColor: '#e8d5de',
     borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11,
@@ -338,21 +449,36 @@ export default function ManagePage() {
 
           <View>
             <Text style={labelStyle}>Business Image</Text>
-            <TouchableOpacity
-              onPress={() => pickImage(setImageUri)}
-              style={{ borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#e8d5de', borderRadius: 10, padding: 10, alignItems: 'center' }}
-            >
-              {imageUri ? (
-                <Image source={{ uri: imageUri }} style={{ width: '100%', height: 140, borderRadius: 8 }} resizeMode="cover" />
-              ) : existingImage ? (
-                <>
-                  <Image source={{ uri: existingImage }} style={{ width: '100%', height: 140, borderRadius: 8 }} resizeMode="cover" />
-                  <Text style={{ color: '#7a5a6a', fontSize: 12, marginTop: 6 }}>Tap to replace image</Text>
-                </>
-              ) : (
-                <Text style={{ color: '#7a5a6a', fontSize: 13 }}>📷 Tap to upload photo</Text>
-              )}
-            </TouchableOpacity>
+            {(imageUri || existingImage) ? (
+              <View style={{ position: 'relative' }}>
+                <Image
+                  source={{ uri: imageUri ?? existingImage! }}
+                  style={{ width: '100%', height: 160, borderRadius: 10 }}
+                  resizeMode="cover"
+                />
+                {/* Replace */}
+                <TouchableOpacity
+                  onPress={() => pickImage(setImageUri)}
+                  style={{ position: 'absolute', bottom: 8, left: 8, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 }}
+                >
+                  <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>📷 Replace</Text>
+                </TouchableOpacity>
+                {/* Delete */}
+                <TouchableOpacity
+                  onPress={handleRemoveBusinessImage}
+                  style={{ position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(220,38,38,0.85)', borderRadius: 20, width: 28, height: 28, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={() => pickImage(setImageUri)}
+                style={{ borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#e8d5de', borderRadius: 10, padding: 24, alignItems: 'center' }}
+              >
+                <Text style={{ color: '#7a5a6a', fontSize: 13 }}>📷 Tap to upload main photo</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <View>
@@ -506,36 +632,134 @@ export default function ManagePage() {
             No services added yet.
           </Text>
         ) : (
-          services.map((svc) => (
-            <View key={svc._id} style={{
-              borderWidth: 1.5, borderColor: '#e8d5de', borderRadius: 12, padding: 14, marginBottom: 10,
-            }}>
-              {svc.images?.[0]?.image && (
-                <Image
-                  source={{ uri: svc.images[0].image }}
-                  style={{ width: '100%', height: 110, borderRadius: 8, marginBottom: 8 }}
-                  resizeMode="cover"
-                />
-              )}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#1a0a12' }}>{svc.name}</Text>
-                  {svc.description ? (
-                    <Text style={{ fontSize: 12, color: '#7a5a6a', marginTop: 2 }} numberOfLines={2}>{svc.description}</Text>
-                  ) : null}
-                  <Text style={{ fontSize: 13, color: GOLD2, fontWeight: '700', marginTop: 4 }}>
-                    ₹{svc.price}
+          services.map((svc) => {
+            const isEditing = editingServiceId === svc._id;
+            const isAddingImg = addingImageToId === svc._id;
+            return (
+              <View key={svc._id} style={{
+                borderWidth: 1.5, borderColor: isEditing ? BRAND : '#e8d5de',
+                borderRadius: 14, padding: 14, marginBottom: 12, gap: 10,
+              }}>
+
+                {/* ── Service images row ── */}
+                <View>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#9a7a85', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }}>
+                    Photos
                   </Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                    {(svc.images ?? []).map(img => (
+                      <View key={img._id} style={{ position: 'relative' }}>
+                        <Image
+                          source={{ uri: img.image.startsWith('http') ? img.image : `https://wedmangal.com${img.image.startsWith('/') ? '' : '/static/images/'}${img.image}` }}
+                          style={{ width: 90, height: 90, borderRadius: 8 }}
+                          resizeMode="cover"
+                        />
+                        <TouchableOpacity
+                          onPress={() => handleDeleteServiceImage(svc._id, img._id)}
+                          style={{ position: 'absolute', top: 3, right: 3, backgroundColor: 'rgba(220,38,38,0.85)', borderRadius: 14, width: 22, height: 22, alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '900' }}>✕</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                    {/* Add image slot */}
+                    <TouchableOpacity
+                      onPress={() => handleAddServiceImage(svc._id)}
+                      disabled={isAddingImg}
+                      style={{ width: 90, height: 90, borderRadius: 8, borderWidth: 1.5, borderStyle: 'dashed', borderColor: GOLD2, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fdf8f0' }}
+                    >
+                      {isAddingImg
+                        ? <ActivityIndicator size="small" color={BRAND} />
+                        : <Text style={{ fontSize: 22 }}>+</Text>}
+                    </TouchableOpacity>
+                  </ScrollView>
                 </View>
-                <TouchableOpacity
-                  onPress={() => handleDeleteService(svc._id)}
-                  style={{ backgroundColor: '#fff5f5', borderRadius: 8, padding: 8, marginLeft: 10 }}
-                >
-                  <Text style={{ color: '#dc2626', fontSize: 12, fontWeight: '600' }}>Delete</Text>
-                </TouchableOpacity>
+
+                {/* ── View / Edit toggle ── */}
+                {!isEditing ? (
+                  <View style={{ gap: 4 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: '#1a0a12' }}>{svc.name}</Text>
+                    {svc.description ? (
+                      <Text style={{ fontSize: 12, color: '#7a5a6a' }} numberOfLines={2}>{svc.description}</Text>
+                    ) : null}
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: BRAND }}>₹{svc.price}</Text>
+
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setEditingServiceId(svc._id);
+                          setEditForm({ name: String(svc.name), description: String(svc.description ?? ''), price: String(svc.price) });
+                        }}
+                        style={{ flex: 1, backgroundColor: '#fdf0f6', borderRadius: 8, paddingVertical: 8, alignItems: 'center', borderWidth: 1, borderColor: BRAND }}
+                      >
+                        <Text style={{ color: BRAND, fontWeight: '700', fontSize: 12 }}>✏️ Edit</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => handleDeleteService(svc._id)}
+                        style={{ flex: 1, backgroundColor: '#fff5f5', borderRadius: 8, paddingVertical: 8, alignItems: 'center', borderWidth: 1, borderColor: '#fca5a5' }}
+                      >
+                        <Text style={{ color: '#dc2626', fontWeight: '700', fontSize: 12 }}>🗑 Delete</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  /* ── Inline edit form ── */
+                  <View style={{ gap: 10 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: BRAND }}>Edit Service</Text>
+                    <View>
+                      <Text style={labelStyle}>Name *</Text>
+                      <TextInput
+                        style={inputStyle}
+                        value={editForm.name}
+                        onChangeText={v => setEditForm(p => ({ ...p, name: v }))}
+                        placeholder="Service name"
+                        placeholderTextColor="#c9b0bc"
+                      />
+                    </View>
+                    <View>
+                      <Text style={labelStyle}>Description</Text>
+                      <TextInput
+                        style={[inputStyle, { minHeight: 70, textAlignVertical: 'top' }]}
+                        value={editForm.description}
+                        onChangeText={v => setEditForm(p => ({ ...p, description: v }))}
+                        placeholder="What's included?"
+                        placeholderTextColor="#c9b0bc"
+                        multiline numberOfLines={3}
+                      />
+                    </View>
+                    <View>
+                      <Text style={labelStyle}>Price (₹) *</Text>
+                      <TextInput
+                        style={[inputStyle, { maxWidth: 160 }]}
+                        value={editForm.price}
+                        onChangeText={v => setEditForm(p => ({ ...p, price: v }))}
+                        placeholder="e.g. 5000"
+                        placeholderTextColor="#c9b0bc"
+                        keyboardType="numeric"
+                      />
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <TouchableOpacity
+                        onPress={() => setEditingServiceId(null)}
+                        style={{ flex: 1, borderWidth: 1.5, borderColor: '#e8d5de', borderRadius: 10, paddingVertical: 10, alignItems: 'center' }}
+                      >
+                        <Text style={{ color: '#7a5a6a', fontWeight: '700', fontSize: 13 }}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={handleUpdateService}
+                        disabled={savingService}
+                        style={{ flex: 2, backgroundColor: BRAND, borderRadius: 10, paddingVertical: 10, alignItems: 'center', opacity: savingService ? 0.7 : 1 }}
+                      >
+                        {savingService
+                          ? <ActivityIndicator size="small" color={GOLD} />
+                          : <Text style={{ color: GOLD, fontWeight: '800', fontSize: 13 }}>💾 Save Service</Text>}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
               </View>
-            </View>
-          ))
+            );
+          })
         )}
 
         {/* Add service toggle */}
