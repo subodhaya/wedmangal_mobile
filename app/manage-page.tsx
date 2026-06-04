@@ -46,7 +46,9 @@ type AddServiceForm = {
 
 export default function ManagePage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  // Handle both id formats: Django may return _id or id
+  const userId = (user as any)?._id ?? user?.id ?? null;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -85,11 +87,16 @@ export default function ManagePage() {
   const fetchedRef = useRef(false);
 
   useEffect(() => {
-    if (!user?.id || fetchedRef.current) return;
+    if (authLoading) return;          // wait for auth to restore from storage
+    if (!userId) {
+      router.replace('/login' as any);
+      return;
+    }
+    if (fetchedRef.current) return;
     fetchedRef.current = true;
     setLoading(true);
     setError('');
-    apiClient.getMyBusiness(user.id)
+    apiClient.getMyBusiness(userId)
       .then(({ data }) => {
         setProductId(data._id ?? data.id ?? null);
         setName(data.name || '');
@@ -114,7 +121,7 @@ export default function ManagePage() {
       })
       .catch(() => setError('Could not load your business data. Please try again.'))
       .finally(() => setLoading(false));
-  }, [user?.id]);
+  }, [authLoading, userId]);
 
   const pickImage = async (onPicked: (uri: string) => void) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -133,7 +140,7 @@ export default function ManagePage() {
   };
 
   const handleSave = async () => {
-    if (!user?.id) return;
+    if (!userId) return;
     setSaving(true);
     setError('');
     setSuccess('');
@@ -156,7 +163,7 @@ export default function ManagePage() {
         const ext = fn.split('.').pop()?.toLowerCase() ?? 'jpg';
         formData.append('image', { uri: imageUri, type: `image/${ext}`, name: fn } as any);
       }
-      await apiClient.updateProduct(user.id, formData);
+      await apiClient.updateProduct(userId, formData);
       setSuccess('Business updated successfully!');
       setTimeout(() => setSuccess(''), 4000);
     } catch (err: any) {
