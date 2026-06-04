@@ -59,6 +59,7 @@ class APIClient {
           } catch {
             await storage.deleteItem("accessToken");
             await storage.deleteItem("refreshToken");
+            await storage.deleteItem("user");
             console.error("❌ Session expired. Please log in again.");
           }
         }

@@ -35,14 +35,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const bootstrapAsync = async () => {
     try {
-      // Try to restore token from secure storage
       const token = await storage.getItem("accessToken");
-      const userStr = await storage.getItem("user");
-      
-      if (token && userStr) {
+      if (token) {
         setAccessToken(token);
-        setUser(JSON.parse(userStr));
-        console.log("✅ Auth restored from secure storage");
+        const userStr = await storage.getItem("user");
+        if (userStr) {
+          try { setUser(JSON.parse(userStr)); } catch {}
+        }
+        console.log("✅ Auth restored from storage");
       }
     } catch (e) {
       console.error("Failed to restore token:", e);
@@ -141,7 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     login,
     signup,
     logout,
-    isAuthenticated: !!user && !!accessToken,
+    isAuthenticated: !!accessToken,
     setAuthData,
   };
 
