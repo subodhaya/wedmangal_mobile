@@ -6,7 +6,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "expo-router";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import * as ImagePicker from "expo-image-picker";
 
 const BRAND = '#5e143f';
@@ -82,40 +82,39 @@ export default function ManagePage() {
   const [addSvc, setAddSvc] = useState<AddServiceForm>({ name: '', description: '', price: '', imageUri: null });
   const [addingService, setAddingService] = useState(false);
 
-  const fetchData = useCallback(async () => {
-    if (!user?.id) return;
+  const fetchedRef = useRef(false);
+
+  useEffect(() => {
+    if (!user?.id || fetchedRef.current) return;
+    fetchedRef.current = true;
     setLoading(true);
     setError('');
-    try {
-      const { data } = await apiClient.getMyBusiness(user.id);
-      setProductId(data._id ?? data.id ?? null);
-      setName(data.name || '');
-      setExistingImage(data.image || null);
-      setBrand(data.brand || '');
-      setCategory(data.category || '');
-      setDescription(data.description || '');
-      setCity(data.city || '');
-      setArea(data.area_name || '');
-      setAddress(data.address || '');
-      setBusinessPhone(data.business_phone || '');
-      setPersonalPhone(data.personal_phone || '');
-      setOpeningTime(data.opening_time || '');
-      setClosingTime(data.closing_time || '');
-      setInstagramUrl(data.instagram_url || '');
-      setFacebookUrl(data.facebook_url || '');
-      setMinPrice(data.min_price ? String(data.min_price) : '');
-      setMaxPrice(data.max_price ? String(data.max_price) : '');
-      setIsApproved(data.is_approved || data.isApproved || false);
-      setIsAvailable(data.is_available || false);
-      setServices(data.services || []);
-    } catch {
-      setError('Could not load your business data. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    apiClient.getMyBusiness(user.id)
+      .then(({ data }) => {
+        setProductId(data._id ?? data.id ?? null);
+        setName(data.name || '');
+        setExistingImage(data.image || null);
+        setBrand(data.brand || '');
+        setCategory(data.category || '');
+        setDescription(data.description || '');
+        setCity(data.city || '');
+        setArea(data.area_name || '');
+        setAddress(data.address || '');
+        setBusinessPhone(data.business_phone || '');
+        setPersonalPhone(data.personal_phone || '');
+        setOpeningTime(data.opening_time || '');
+        setClosingTime(data.closing_time || '');
+        setInstagramUrl(data.instagram_url || '');
+        setFacebookUrl(data.facebook_url || '');
+        setMinPrice(data.min_price ? String(data.min_price) : '');
+        setMaxPrice(data.max_price ? String(data.max_price) : '');
+        setIsApproved(data.is_approved || data.isApproved || false);
+        setIsAvailable(data.is_available || false);
+        setServices(data.services || []);
+      })
+      .catch(() => setError('Could not load your business data. Please try again.'))
+      .finally(() => setLoading(false));
   }, [user?.id]);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
 
   const pickImage = async (onPicked: (uri: string) => void) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();

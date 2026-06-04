@@ -72,7 +72,6 @@ export default function AddProductPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
   const [checking, setChecking] = useState(true);
 
   // If vendor already has a business, send them to manage-page
@@ -148,8 +147,12 @@ export default function AddProductPage() {
       });
 
       await apiClient.registerProduct(formData);
-      setSuccess(true);
-      setTimeout(() => router.replace('/manage-page'), 2000);
+      Alert.alert(
+        '🎉 Business Registered!',
+        'Your listing has been submitted for review. You can now manage your page.',
+        [{ text: 'Go to My Page', onPress: () => router.replace('/manage-page' as any) }],
+        { cancelable: false }
+      );
     } catch (err: any) {
       const d = err?.response?.data;
       const msg = d?.detail || d?.message || d?.error
@@ -204,18 +207,7 @@ export default function AddProductPage() {
         </Text>
       </View>
 
-      {success ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 }}>
-          <Text style={{ fontSize: 48 }}>🎉</Text>
-          <Text style={{ fontSize: 20, fontWeight: '800', color: BRAND, textAlign: 'center' }}>
-            Business Registered!
-          </Text>
-          <Text style={{ fontSize: 14, color: '#7a5a6a', textAlign: 'center' }}>
-            Our team will review and approve your listing shortly.
-          </Text>
-          <ActivityIndicator color={BRAND} style={{ marginTop: 8 }} />
-        </View>
-      ) : (
+      {(
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
 
           {error ? (
@@ -484,5 +476,6 @@ export default function AddProductPage() {
         </ScrollView>
       )}
     </ScreenContainer>
+
   );
 }
