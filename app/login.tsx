@@ -41,19 +41,10 @@ export default function LoginScreen() {
     }
   }, [response]);
 
-  // After login: vendors → check if business exists → add-product or manage-page
-  // Customers → home tabs
-  const routeAfterLogin = async (userData: any) => {
+  // After login: service-owners always go to add-product; customers → home tabs
+  const routeAfterLogin = (userData: any) => {
     if (userData?.role === 'service-owner') {
-      try {
-        const userId = userData._id || userData.id;
-        await apiClient.getMyBusiness(userId);
-        // Business found → manage page
-        router.replace('/manage-page' as any);
-      } catch (err: any) {
-        // 404 or no business → register first
-        router.replace('/add-product' as any);
-      }
+      router.replace('/add-product' as any);
     } else {
       router.replace('/(tabs)');
     }
