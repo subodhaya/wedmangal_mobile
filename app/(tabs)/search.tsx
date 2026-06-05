@@ -45,7 +45,6 @@ const CATEGORIES = [
   { id: 'Photographers',   label: 'Photographers' },
   { id: 'Caterers',        label: 'Caterers' },
   { id: 'Planners',        label: 'Event Planners' },
-  { id: 'Halls',           label: 'Halls #',        disabled: true },
   { id: 'Decorators',      label: 'Decorators' },
   { id: 'Mehandi_Artist',  label: 'Mehandi Artist' },
   { id: 'Invitation',      label: 'Invitation' },
