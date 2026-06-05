@@ -604,38 +604,23 @@ export default function HomeScreen() {
             {CATEGORIES.map(cat => (
               <TouchableOpacity
                 key={cat.id}
-                onPress={() => !cat.disabled && router.push(`/(tabs)/search?category=${cat.id}`)}
-                activeOpacity={cat.disabled ? 1 : 0.85}
+                onPress={() => router.push(`/(tabs)/search?category=${cat.id}`)}
+                activeOpacity={0.85}
                 style={{
                   width: catSize, borderRadius: 12, overflow: 'hidden',
-                  backgroundColor: '#fff', elevation: cat.disabled ? 0 : 2,
-                  ...(cat.disabled ? {} : shadow(BRAND, 0.08, 4, 1)),
-                  opacity: cat.disabled ? 0.55 : 1,
+                  backgroundColor: '#fff', elevation: 2,
+                  ...shadow(BRAND, 0.08, 4, 1),
                 }}
               >
-                <View style={{ position: 'relative' }}>
-                  <Image
-                    source={CAT_IMG[cat.id]}
-                    style={{ width: catSize, height: catSize }}
-                    resizeMode="cover"
-                  />
-                  {cat.disabled && (
-                    <View style={{
-                      position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                      backgroundColor: 'rgba(0,0,0,0.35)',
-                      alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <Text style={{ color: '#fff', fontSize: 16, fontWeight: '900' }}>#</Text>
-                    </View>
-                  )}
-                </View>
+                <Image
+                  source={CAT_IMG[cat.id]}
+                  style={{ width: catSize, height: catSize }}
+                  resizeMode="cover"
+                />
                 <View style={{ paddingVertical: 7, paddingHorizontal: 4, alignItems: 'center' }}>
-                  <Text style={{ fontSize: 10, fontWeight: '600', color: cat.disabled ? '#9a7a85' : '#1a0a12', textAlign: 'center' }}>
+                  <Text style={{ fontSize: 10, fontWeight: '600', color: '#1a0a12', textAlign: 'center' }}>
                     {cat.label}
                   </Text>
-                  {cat.disabled && (
-                    <Text style={{ fontSize: 8, color: '#9a7a85', marginTop: 1 }}>Coming Soon</Text>
-                  )}
                 </View>
               </TouchableOpacity>
             ))}
