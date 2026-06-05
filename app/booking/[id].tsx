@@ -1,11 +1,10 @@
 import {
   ScrollView, Text, View, TouchableOpacity, TextInput,
-  ActivityIndicator, Linking, FlatList, BackHandler,
+  ActivityIndicator, Linking, BackHandler, Modal,
 } from "react-native";
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ScreenContainer } from "@/components/screen-container";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState, useRef } from "react";
 import { apiClient } from "@/lib/api-client";
 import { shadow } from "@/lib/utils";
 
@@ -194,21 +193,55 @@ export default function BookingScreen() {
   const [endHour,   setEndHour]     = useState('10');
   const [endMin,    setEndMin]      = useState('00');
   const [venue, setVenue]       = useState('');
-  const [loading, setLoading]     = useState(false);
-  const [booked, setBooked]       = useState(false);
-  const [orderId, setOrderId]     = useState('');
-  const [error, setError]         = useState('');
+  const [loading, setLoading]         = useState(false);
+  const [booked, setBooked]           = useState(false);
+  const [orderId, setOrderId]         = useState('');
+  const [error, setError]             = useState('');
   const [whatsappSent, setWhatsappSent] = useState(false);
+  // Fullscreen WhatsApp modal state
+  const [showModal, setShowModal]     = useState(false);
+  const [skipVisible, setSkipVisible] = useState(false);
+  const [countdown, setCountdown]     = useState<number | null>(null);
+  const skipTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Block hardware back button on Android until WhatsApp is sent
+  // Show the blocking modal 3 s after booking confirmed
+  useEffect(() => {
+    if (!booked || !vendorPhone) return;
+    const t = setTimeout(() => setShowModal(true), 3000);
+    return () => clearTimeout(t);
+  }, [booked]);
+
+  // Skip button visible after 30 s inside modal
+  useEffect(() => {
+    if (!showModal) return;
+    skipTimer.current = setTimeout(() => setSkipVisible(true), 30000);
+    return () => { if (skipTimer.current) clearTimeout(skipTimer.current); };
+  }, [showModal]);
+
+  // Block Android back until sent
   useEffect(() => {
     if (!booked) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (!whatsappSent) return true; // block
-      return false; // allow
+      if (!whatsappSent) return true;
+      return false;
     });
     return () => sub.remove();
   }, [booked, whatsappSent]);
+
+  // Start countdown → home after WhatsApp sent
+  const startCountdown = () => {
+    let secs = 20;
+    setCountdown(secs);
+    countdownRef.current = setInterval(() => {
+      secs -= 1;
+      setCountdown(secs);
+      if (secs <= 0) {
+        clearInterval(countdownRef.current!);
+        router.replace('/(tabs)');
+      }
+    }, 1000);
+  };
 
   const displayPrice = price && parseInt(price) > 0
     ? `₹${parseInt(price).toLocaleString('en-IN')}`
@@ -283,12 +316,85 @@ export default function BookingScreen() {
     ].join('\n');
     Linking.openURL(`https://wa.me/${vendorPhone}?text=${encodeURIComponent(msg)}`);
     setWhatsappSent(true);
+    setShowModal(false);
+    if (!countdown) startCountdown();
+  };
+
+  const handleSkip = () => {
+    setShowModal(false);
+    setWhatsappSent(true);
+    if (!countdown) startCountdown();
   };
 
   // ── Success screen ─────────────────────────────────────────────────────────
   if (booked) {
     return (
       <ScreenContainer edges={['top', 'left', 'right']} containerClassName="bg-white">
+
+        {/* ── Fullscreen WhatsApp blocking modal ── */}
+        <Modal visible={showModal} transparent animationType="fade" statusBarTranslucent>
+          <View style={{
+            flex: 1, backgroundColor: 'rgba(0,0,0,0.75)',
+            alignItems: 'center', justifyContent: 'center', padding: 24,
+          }}>
+            <View style={{
+              backgroundColor: '#fff', borderRadius: 24, padding: 32,
+              width: '100%', maxWidth: 400, alignItems: 'center', gap: 16,
+            }}>
+              {/* Icon */}
+              <Text style={{ fontSize: 64 }}>💬</Text>
+
+              {/* Title */}
+              <Text style={{ fontSize: 22, fontWeight: '900', color: '#1a0a12', textAlign: 'center' }}>
+                Notify the Vendor
+              </Text>
+
+              {/* Body */}
+              <Text style={{ fontSize: 14, color: '#5a3a45', textAlign: 'center', lineHeight: 21 }}>
+                Your booking is confirmed. Send the vendor a WhatsApp message now so they can prepare for your event.
+              </Text>
+
+              {/* Booking reference */}
+              <View style={{ backgroundColor: '#fdf8f0', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: '#e8d5de' }}>
+                <Text style={{ fontSize: 12, color: '#9a7a85', textAlign: 'center' }}>
+                  {serviceName} · {formattedDate} · {startTime}–{endTime}{isOvernight ? ' +1' : ''}
+                </Text>
+              </View>
+
+              {/* WhatsApp CTA */}
+              <TouchableOpacity
+                onPress={openWhatsApp}
+                style={{
+                  width: '100%', backgroundColor: GREEN, borderRadius: 50,
+                  paddingVertical: 18, flexDirection: 'row',
+                  alignItems: 'center', justifyContent: 'center', gap: 10,
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={{ fontSize: 22 }}>💬</Text>
+                <View>
+                  <Text style={{ color: '#fff', fontWeight: '900', fontSize: 17 }}>Send WhatsApp Message</Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, textAlign: 'center' }}>Tap to open WhatsApp</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Skip — appears after 30 s */}
+              {skipVisible ? (
+                <TouchableOpacity onPress={handleSkip} style={{ paddingVertical: 6 }}>
+                  <Text style={{ fontSize: 12, color: '#9a7a85', textDecorationLine: 'underline' }}>
+                    I'll notify them later — skip for now
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <Text style={{ fontSize: 11, color: '#c9b0bc', textAlign: 'center' }}>
+                  Skip option appears in 30 seconds…
+                </Text>
+              )}
+            </View>
+          </View>
+        </Modal>
+
+        {/* ── Background summary while modal is shown / after sent ── */}
         <ScrollView contentContainerStyle={{ padding: 24, alignItems: 'center', gap: 20 }}>
 
           {/* Checkmark */}
@@ -302,7 +408,9 @@ export default function BookingScreen() {
           <View style={{ alignItems: 'center', gap: 6 }}>
             <Text style={{ fontSize: 24, fontWeight: '900', color: BRAND }}>Booking Confirmed!</Text>
             <Text style={{ fontSize: 13, color: '#7a5a6a', textAlign: 'center' }}>
-              Order #{orderId} saved. Now notify the vendor on WhatsApp.
+              {whatsappSent
+                ? 'Vendor notified via WhatsApp 🎊'
+                : 'Preparing your WhatsApp notification…'}
             </Text>
           </View>
 
@@ -311,64 +419,19 @@ export default function BookingScreen() {
             width: '100%', backgroundColor: '#fdf8f0', borderRadius: 16,
             padding: 20, gap: 12, borderWidth: 1, borderColor: '#e8d5de',
           }}>
-            <Row label="Vendor"   value={vendorName} />
-            <Row label="Service"  value={serviceName} />
-            <Row label="Date"     value={formattedDate} />
-            <Row label="Time"     value={`${startTime} – ${endTime}${isOvernight ? ' (+1 day)' : ''}`} />
+            {orderId ? <Row label="Booking ID" value={`#${orderId}`} bold /> : null}
+            <Row label="Vendor"  value={vendorName} />
+            <Row label="Service" value={serviceName} />
+            <Row label="Date"    value={formattedDate} />
+            <Row label="Time"    value={`${startTime} – ${endTime}${isOvernight ? ' (+1 day)' : ''}`} />
             {venue ? <Row label="Venue" value={venue} /> : null}
-            <Row label="Price"    value={displayPrice} bold />
+            <Row label="Price"   value={displayPrice} bold />
           </View>
 
-          {/* ── WhatsApp — mandatory step ── */}
-          {!whatsappSent ? (
-            <View style={{ width: '100%', gap: 10 }}>
-              {/* Warning banner */}
-              <View style={{
-                backgroundColor: '#fffbeb', borderRadius: 12, padding: 14,
-                borderWidth: 1.5, borderColor: '#fcd34d',
-                flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-              }}>
-                <Text style={{ fontSize: 20 }}>⚠️</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#92400e' }}>
-                    Action required
-                  </Text>
-                  <Text style={{ fontSize: 12, color: '#b45309', marginTop: 2, lineHeight: 17 }}>
-                    You must send the booking details to the vendor on WhatsApp to complete your booking. The vendor confirms only after receiving your message.
-                  </Text>
-                </View>
-              </View>
-
-              {vendorPhone ? (
-                <TouchableOpacity
-                  onPress={openWhatsApp}
-                  style={{
-                    width: '100%', backgroundColor: GREEN, borderRadius: 14,
-                    paddingVertical: 18, flexDirection: 'row', alignItems: 'center',
-                    justifyContent: 'center', gap: 12,
-                  }}
-                >
-                  <Text style={{ fontSize: 22 }}>💬</Text>
-                  <View>
-                    <Text style={{ color: '#fff', fontWeight: '900', fontSize: 16 }}>Send WhatsApp Message</Text>
-                    <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11 }}>Tap to notify the vendor now</Text>
-                  </View>
-                </TouchableOpacity>
-              ) : (
-                /* No phone — allow skipping */
-                <TouchableOpacity
-                  onPress={() => setWhatsappSent(true)}
-                  style={{ alignItems: 'center', paddingVertical: 8 }}
-                >
-                  <Text style={{ color: '#9a7a85', fontSize: 12, textDecorationLine: 'underline' }}>
-                    No phone number — skip
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          ) : (
-            /* ── Sent — show navigation ── */
+          {/* Post-send state */}
+          {whatsappSent && (
             <View style={{ width: '100%', gap: 12 }}>
+              {/* Success banner */}
               <View style={{
                 backgroundColor: '#f0fdf4', borderRadius: 12, padding: 14,
                 borderWidth: 1.5, borderColor: '#86efac',
@@ -376,39 +439,35 @@ export default function BookingScreen() {
               }}>
                 <Text style={{ fontSize: 20 }}>✅</Text>
                 <Text style={{ fontSize: 13, fontWeight: '700', color: '#15803d', flex: 1 }}>
-                  WhatsApp message sent! The vendor will confirm your booking shortly.
+                  {countdown
+                    ? `Redirecting to home in ${countdown}s…`
+                    : 'WhatsApp message sent! Vendor will confirm shortly.'}
                 </Text>
               </View>
 
-              {/* Resend option */}
+              {/* Resend */}
               {vendorPhone ? (
                 <TouchableOpacity
                   onPress={openWhatsApp}
                   style={{
                     width: '100%', backgroundColor: GREEN, borderRadius: 14,
-                    paddingVertical: 14, flexDirection: 'row', alignItems: 'center',
-                    justifyContent: 'center', gap: 10, opacity: 0.85,
+                    paddingVertical: 14, flexDirection: 'row',
+                    alignItems: 'center', justifyContent: 'center', gap: 10,
                   }}
                 >
                   <Text style={{ fontSize: 18 }}>💬</Text>
-                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Resend WhatsApp Message</Text>
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Resend WhatsApp</Text>
                 </TouchableOpacity>
               ) : null}
 
               <TouchableOpacity
                 onPress={() => router.replace('/(tabs)/bookings')}
-                style={{
-                  width: '100%', backgroundColor: BRAND, borderRadius: 14,
-                  paddingVertical: 15, alignItems: 'center',
-                }}
+                style={{ width: '100%', backgroundColor: BRAND, borderRadius: 14, paddingVertical: 15, alignItems: 'center' }}
               >
                 <Text style={{ color: GOLD_T, fontWeight: '900', fontSize: 15 }}>View My Bookings</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={() => router.replace('/(tabs)')}
-                style={{ alignItems: 'center', paddingVertical: 6 }}
-              >
+              <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={{ alignItems: 'center', paddingVertical: 6 }}>
                 <Text style={{ color: '#9a7a85', fontSize: 13, textDecorationLine: 'underline' }}>Back to Home</Text>
               </TouchableOpacity>
             </View>
