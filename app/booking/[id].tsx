@@ -209,11 +209,16 @@ export default function BookingScreen() {
   const startTime = `${startHour}:${startMin}`;
   const endTime   = `${endHour}:${endMin}`;
 
+  // True when end time is on the next day (e.g. start 21:00 → end 07:00)
+  const isOvernight =
+    parseInt(endHour) < parseInt(startHour) ||
+    (endHour === startHour && parseInt(endMin) < parseInt(startMin));
+
   const confirmBooking = async () => {
     if (!date) { setError('Please select a date'); return; }
-    // Validate end time > start time
-    if (endHour < startHour || (endHour === startHour && endMin <= startMin)) {
-      setError('End time must be after start time'); return;
+    // Same-time is not allowed; overnight (end < start) is fine
+    if (endHour === startHour && endMin === startMin) {
+      setError('End time cannot be the same as start time'); return;
     }
     setError('');
     setLoading(true);
@@ -259,7 +264,7 @@ export default function BookingScreen() {
       ``,
       `Event: ${serviceName}`,
       `Date: ${formattedDate}`,
-      `Time: ${startTime} – ${endTime}`,
+      `Time: ${startTime} – ${endTime}${isOvernight ? ' (+1 day)' : ''}`,
       `Venue: ${venue.trim() || 'TBD'}`,
       ``,
       `Looking forward to make ur big day more beautiful and memorable😊`,
@@ -294,7 +299,7 @@ export default function BookingScreen() {
             <Row label="Vendor"   value={vendorName} />
             <Row label="Service"  value={serviceName} />
             <Row label="Date"     value={formattedDate} />
-            <Row label="Time"     value={`${startTime} – ${endTime}`} />
+            <Row label="Time"     value={`${startTime} – ${endTime}${isOvernight ? ' (+1 day)' : ''}`} />
             {venue ? <Row label="Venue" value={venue} /> : null}
             <Row label="Price"    value={displayPrice} bold />
           </View>
@@ -384,11 +389,19 @@ export default function BookingScreen() {
               hour={startHour} minute={startMin}
               onHour={setStartHour} onMinute={setStartMin}
             />
-            <TimeWheel
-              label="End Time"
-              hour={endHour} minute={endMin}
-              onHour={setEndHour} onMinute={setEndMin}
-            />
+            <View style={{ flex: 1, gap: 6 }}>
+              <TimeWheel
+                label="End Time"
+                hour={endHour} minute={endMin}
+                onHour={setEndHour} onMinute={setEndMin}
+              />
+              {isOvernight && (
+                <View style={{ backgroundColor: '#fef3c7', borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                  <Text style={{ fontSize: 13 }}>🌙</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#92400e' }}>Ends next day (+1)</Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
 
